@@ -3,7 +3,7 @@ from google.cloud import storage, bigquery
 
 client = bigquery.Client()
 
-dataset_id = "{}.project_zeta".format(client.project)
+dataset_id = f"{client.project}.project_zeta"
 dataset_location = "northamerica-northeast2"
 bucket_name = "project-zeta-bucket"
 source_file_name = "pokemon_gen_6_data_1.csv"
@@ -22,7 +22,7 @@ def set_up_dataset(id) -> None:
     dataset.location = dataset_location
 
     dataset = client.create_dataset(dataset, timeout=30)
-    print("Created dataset {}.{}".format(client.project, id))
+    print(f"Created dataset {client.project}.{id}")
 
 
 def upload_file_to_bucket(blob_name, file_name) -> None:
@@ -58,7 +58,7 @@ def load_table_from_bucket(bucket_uri, id) -> None:
     load_job.result()
 
     destination_table = client.get_table(id)
-    print("Loaded {} rows for {}.".format(destination_table.num_rows, id))
+    print(f"Loaded {destination_table.num_rows} rows for {id}.")
 
 
 def init_dataset() -> None:
@@ -115,24 +115,24 @@ def select_best_of_query(columns, type_1, type_2, stat) -> None:
 
 
 def bst_range(min, max, type) -> None:
-    query = f"SELECT * FROM `{table_id}` AS T WHERE "
-
+    type_query = ""
+    
     if type == "":
         pass
     elif type in types:
-        query += f"(T.`Type 1` = '{type}' OR T.`Type 2` = '{type}') AND "
+        type_query += f"(T.`Type 1` = '{type}' OR T.`Type 2` = '{type}') AND "
     else:
         print("Type 1 is not a valid type")
         return
 
-    query += f"T.{table_columns[4]}"
+    math = f"T.{table_columns[4]}"
     
     i = 5
     while i < len(table_columns):
-        query += f" + T.{table_columns[i]}"
+        math += f" + T.{table_columns[i]}"
         i += 1
 
-    query += f" BETWEEN {min} AND {max}"
+    query = f"SELECT * FROM `{table_id}` AS T WHERE {type_query} {math} BETWEEN {min} AND {max}"
     
     send_query(query)
 
@@ -154,17 +154,16 @@ def merge(file_name) -> None:
     load_table_from_bucket(temp_uri, temp_table_id)
 
     #Merge data from the two tables
-
     merge_query = f"MERGE INTO {table_id} T "
     merge_query += f"USING {temp_table_id} S "
     merge_query += """
-    ON T.Name = S.Name 
-    WHEN MATCHED THEN
-        UPDATE SET `Type 1` = S.`Type 1`, `Type 2` = S.`Type 2`, Attack = S.Attack,
-        Defence = S.Defence, `Sp Attack` = S.`Sp Attack`,
-        Sp Defence` = S.`Sp Defence`, Speed = S.Speed
-    WHEN NOT MATCHED THEN
-        INSERT (Number, Name, `Type 1`, `Type 2`, HP, Attack, Defence, `Sp Attack`, `Sp Defence`, Speed) 
+    ON T.Name = S.Name
+    WHEN MATCHED 
+    THEN UPDATE 
+        SET `Type 1` = S.`Type 1`, `Type 2` = S.`Type 2`, Attack = S.Attack, Defence = S.Defence, `Sp Attack` = S.`Sp Attack`, `Sp Defence` = S.`Sp Defence`, Speed = S.Speed 
+    WHEN NOT MATCHED 
+    THEN 
+        INSERT (Number, Name, `Type 1`, `Type 2`, HP, Attack, Defence, `Sp Attack`, `Sp Defence`, Speed)
         VALUES (Number, Name, `Type 1`, `Type 2`, HP, Attack, Defence, `Sp Attack`, `Sp Defence`, Speed)
     """
     
