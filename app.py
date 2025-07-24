@@ -143,6 +143,8 @@ def total_by_type() -> None:
 
 
 def merge(file_name) -> None:
+    #Ex. file: pokemon_gen_6_data_2.csv
+    
     temp_blob_name = "pokemon_data_temp"
     temp_table_id = dataset_id + "." + temp_blob_name
     temp_uri = "gs://" + bucket_name + "/" + temp_blob_name
@@ -154,9 +156,9 @@ def merge(file_name) -> None:
     load_table_from_bucket(temp_uri, temp_table_id)
 
     #Merge data from the two tables
-    merge_query = f"MERGE INTO {table_id} T "
-    merge_query += f"USING {temp_table_id} S "
-    merge_query += """
+    merge_query = f"""
+    MERGE INTO {table_id} T 
+    USING {temp_table_id} S 
     ON T.Name = S.Name
     WHEN MATCHED 
     THEN UPDATE 
